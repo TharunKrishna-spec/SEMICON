@@ -55,3 +55,33 @@ Append-only. Chronological, one block per work session or per completed step.
   LER, cuts, landmarks.
 - Open: corner rounding, LER, cuts, landmarks.
 - Next: Step 3, LER.
+
+### 2026-08-16 — Step 3: line-edge roughness (LER)
+- Added `_EdgeRoughness`: white noise on a 2 nm grid, smoothed with
+  `scipy.ndimage.gaussian_filter1d` (kernel std = `ler_corr_len_nm`),
+  rescaled to hit the target `ler_sigma3_nm / 3` std exactly — see D-006.
+  Four independent realisations per model: fin-left, fin-right, gate-bottom,
+  gate-top (edges not width-correlated — see D-007).
+- `build_geometry()` signature changed: now takes `extent_nm` (half-width of
+  the square domain LER is realised over) and `rng` (a dedicated geometry
+  RNG stream, separate from per-capture noise streams) — see D-008. This is
+  a real API change from step 2, expected at this point in the build order.
+- `signed_distance` now perturbs each of the four edge positions by the
+  corresponding `_EdgeRoughness.sample(feature_idx, running_coord)` before
+  taking `min(dist_to_edge_a, dist_to_edge_b)` per feature and
+  `max(d_fin, d_gate)` for the union, same structure as step 2. Confirmed
+  algebraically that at zero roughness this reduces to exactly the step-2
+  formula (`half_w - |offset from center|`).
+- Verified: (1) determinism — same seed twice gives bit-identical
+  `_EdgeRoughness.values` arrays; different seed gives different arrays;
+  (2) realised std of each of the four arrays matches the target
+  `ler_sigma3_nm/3 = 1.0 nm` exactly (post-rescale, as designed);
+  (3) `signed_distance` stays finite everywhere on a 500x500 test grid;
+  (4) rendered `docs/validation/step3_sdf_ler.png`, `ler_sigma3_nm=0` vs
+  default (`3.0`/`25.0`) side by side — LER off shows perfectly straight
+  edges, LER on shows smooth correlated wiggle at roughly the expected
+  spatial scale relative to the 200 nm field of view shown, on both fin and
+  gate edges.
+- Open: corner rounding, cuts, landmarks. `extent_nm` sizing for real 10 um
+  search captures is deferred to `pair.py` (step 8).
+- Next: Step 4, cuts and landmarks.

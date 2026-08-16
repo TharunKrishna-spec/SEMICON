@@ -111,3 +111,89 @@ passes an unresolved `GeometryConfig` (e.g. `preset="n7"` but still carrying
 **Consequences:** `GeometryModel.cfg` is always resolved; there is no way to
 construct one with an unresolved preset.
 **Supersedes:** —
+
+## D-006 — Gaussian-correlated LER via smoothed white noise; correlation length = filter kernel std
+**Date:** 2026-08-16
+**Status:** accepted
+**Context:** LER needs a spatial correlation structure. CD-SEM roughness
+literature characterises LER via a power-law PSD split into low/mid/high
+frequency bands (see CLAUDE.md's own worked example).
+**Decision:** Sample white noise on a uniform grid (`_LER_SAMPLE_STEP_NM =
+2.0`) per feature edge, run `scipy.ndimage.gaussian_filter1d` along the
+running coordinate with `sigma = ler_corr_len_nm / _LER_SAMPLE_STEP_NM`
+samples, then rescale so the realised array's empirical std equals
+`ler_sigma3_nm / 3`. `ler_corr_len_nm` is treated directly as the Gaussian
+filter kernel's standard deviation, not fit to a target autocorrelation
+width (which for a Gaussian kernel convolved with itself would be
+`sqrt(2) * sigma_kernel`).
+**Alternatives considered:** Full power-law PSD (own validation burden, ~40
+lines); white noise per edge point with no smoothing (would be washed out
+entirely by the PSF, per CLAUDE.md's own framing).
+**Rationale:** Power-law PSD is out of scope for the value it would add;
+Gaussian correlation captures the property Phase 2 actually depends on (each
+fin period is distinguishable at 1 nm/px but not at 10 nm/px). Treating
+`ler_corr_len_nm` as the kernel std directly (rather than deriving it from a
+target ACF width) is a simplification -- rescaling to the empirical std after
+filtering guarantees the realised roughness amplitude is exactly right
+regardless.
+**Consequences:** The LER spectrum is not spectrally calibrated to a specific
+ACF definition; `ler_corr_len_nm` is "a correlation length" in the loose,
+qualitative sense, not a precisely fit one. If Phase 2 results turn out
+sensitive to the exact roughness spectrum, revisit.
+**Supersedes:** —
+
+## D-007 — Fin/gate edges perturbed independently per side, not width-preserving
+**Date:** 2026-08-16
+**Status:** accepted
+**Context:** A fin (or gate) has two edges. Real LER/LWR literature
+distinguishes single-edge roughness (LER) from line-width roughness (LWR),
+which depends on the correlation between the two edges of the same line.
+**Decision:** Generate four independent `_EdgeRoughness` realisations
+(fin-left, fin-right, gate-bottom, gate-top) with no correlation between the
+two edges of the same feature. Local width can therefore vary as edges
+wander independently.
+**Alternatives considered:** Perturbing both edges of a feature identically
+(width-preserving, only centerline wanders); modelling the left/right
+correlation explicitly (adds a free parameter with no literature value
+given in this project's scope).
+**Rationale:** Independent per-edge roughness is the simpler, more standard
+default assumption and is sufficient for what Phase 2 needs: edges that are
+locally distinguishable at 1 nm/px and washed out at 10 nm/px. Modelling
+edge-to-edge correlation would need its own literature-sourced correlation
+coefficient, which CLAUDE.md does not provide.
+**Consequences:** Local fin/gate width has more variance than a real
+width-preserving process would. Not expected to matter for localisation
+(which cares about edge position, not width per se); revisit only if Phase 2
+results turn out sensitive to width variance specifically.
+**Supersedes:** —
+
+## D-008 — `build_geometry()` now requires a finite `extent_nm` and a geometry RNG stream
+**Date:** 2026-08-16
+**Status:** accepted
+**Context:** LER (D-006) must be "generated once per model, in physical
+coordinates, stored on the model object" (CLAUDE.md step 3), which requires
+sampling white noise on a bounded grid -- unlike the index-based infinite
+tiling used for the bare lattice (D-001), LER cannot be evaluated at an
+unbounded coordinate without first committing to a finite realised domain.
+**Decision:** `build_geometry(cfg, extent_nm, rng)` now takes the half-width
+of a square domain `[-extent_nm, extent_nm]^2` (in the rotated local frame)
+over which LER is realised, plus an `np.random.Generator` dedicated to
+geometry realisation. `GeometryModel.extent_nm` records this so future code
+(cuts/landmarks in step 4, and callers in `pair.py`) has one place to read
+the valid domain from. Queries outside the domain will index out of bounds
+and raise, by design (CLAUDE.md working style: don't validate what can't
+happen -- it is `pair.py`'s job, not `signed_distance`'s, to size
+`extent_nm` correctly for whatever field of view will actually be rendered).
+**Alternatives considered:** A closed-form/procedural per-index noise
+synthesis (e.g. summed sinusoids seeded by a hash of feature index) that
+would work at unbounded coordinates without a finite domain.
+**Rationale:** A closed-form synthesis that produces a true Gaussian-shaped
+autocorrelation over an unbounded domain is materially more complex than
+"filter some white noise," and CLAUDE.md's own dependency list
+(`scipy.ndimage.gaussian_filter`/`gaussian_filter1d`) signals the smoothed-
+white-noise approach is the intended one.
+**Consequences:** `pair.py` (step 8) must size `extent_nm` to comfortably
+cover the search capture's 10 um field of view (plus the reference capture,
+which is nested inside it) before calling `build_geometry`; this is a real
+constraint on that module's design, not yet implemented.
+**Supersedes:** —

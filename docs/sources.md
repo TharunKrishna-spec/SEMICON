@@ -60,7 +60,8 @@ calibrated against real tool data. See comment in `generator/yield_field.py`.
 | Constant | Value | Tag | Source |
 |---|---|---|---|
 | LER 3-sigma | 2-5 nm range, 3.0 nm default | (a)/(c) | Range from CD-SEM LER literature (a); default point choice (c) |
-| LER correlation length | 25 nm | (c) | Engineering choice; Gaussian-correlated model selected over power-law PSD, see D-002 |
+| LER correlation length | 25 nm | (c) | Engineering choice; Gaussian-correlated model selected over power-law PSD, see D-006/D-007 |
+| LER sampling grid step | 2 nm | (c) | Our choice, resolves the default 25 nm correlation length at ~12 samples/length; see D-006 and the `# ASSUMPTION:` comment in `generator/geometry.py` |
 
 ## Supersampling
 
