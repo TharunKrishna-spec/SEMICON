@@ -83,7 +83,15 @@ def resolve_preset(geometry: GeometryConfig) -> GeometryConfig:
     """Return a copy of `geometry` with fin/gate pitch, width, height and
     length overwritten from `NODE_PRESETS[geometry.preset]`. All other
     fields (rotation, LER, cuts, landmarks) pass through unchanged.
+
+    `preset="custom"` bypasses the NODE_PRESETS lookup entirely and returns
+    `geometry` unchanged -- an escape hatch for callers (currently only
+    validate.py's isolated-edge fixture, see D-025) that need fin/gate
+    dimensions outside the three named process nodes. Not used by any
+    production preset in presets.py.
     """
+    if geometry.preset == "custom":
+        return geometry
     if geometry.preset not in NODE_PRESETS:
         raise ValueError(
             f"unknown geometry preset {geometry.preset!r}; "

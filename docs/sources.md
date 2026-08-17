@@ -53,7 +53,7 @@ calibrated against real tool data. See comment in `generator/yield_field.py`.
 | Landing energy | 300-800 eV | (a) | Typical CD-SEM specifications |
 | FWHM -> sigma range | 0.85-1.7 nm | (b) | Derived from FWHM 2-4 nm via sigma = FWHM / 2.355 |
 | Reference `psf_sigma_nm` | 1.0 nm | (b) | Mid-range of derived sigma, higher-magnification capture assumed better focused |
-| Search `psf_sigma_nm` | 3.0 nm | (c) | Our choice: lower magnification modeled as less well focused |
+| Search `psf_sigma_nm` | 8.0 nm | (c) | Revised from CLAUDE.md's literal 3.0 nm default after a boundary-controlled sigma sweep (3/5/8 nm) showed 8 nm was the best-performing, no-boundary-artifact option among those tested for tests 6/7's subpixel-recovery gate; still a further extension beyond the literal 0.85-1.7 nm probe-derived range than 3.0 nm was, on the same "lower magnification, less well focused" physical basis. Does not by itself clear the test 6/7 thresholds -- see D-021. |
 
 ## Line-edge roughness
 
@@ -69,6 +69,22 @@ calibrated against real tool data. See comment in `generator/yield_field.py`.
 |---|---|---|---|
 | Reference `k` | 4 (fine step 0.25 nm) | (c) | Our choice, validated by gate test 7 |
 | Search `k` | 8 (fine step 1.25 nm) | (c) | Our choice, validated by gate test 7 |
+
+## Cuts and landmarks
+
+| Constant | Value | Tag | Source |
+|---|---|---|---|
+| Cut length fraction | 0.3 x perpendicular pitch | (c) | Our choice; see D-010 |
+| Cut candidate-site placement | gap midpoints between perpendicular-feature crossings | (c) | Our choice, physically motivated by real fin-cut/gate-cut litho; see D-009 |
+| Landmark shape | axis-aligned square, side = `landmark_scale_nm` | (c) | Our choice; see D-011 |
+| Landmark placement | uniform random within 80% of `extent_nm` | (c) | Our choice; see D-011 |
+
+## Detector
+
+| Constant | Value | Tag | Source |
+|---|---|---|---|
+| `_BASE_DN_PER_YIELD` | 100 DN per unit yield | (c) | Our choice, uncalibrated -- CLAUDE.md explicitly excludes calibrated dose/grey-level; see D-015 |
+| `_BAND_CORR_LEN_PX` | 15 output px | (c) | Our choice; see D-016 |
 
 ## Capture-asymmetry defaults (dose, read noise, banding, etc.)
 
