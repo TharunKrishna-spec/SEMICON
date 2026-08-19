@@ -2,3 +2,20 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# test/coverage caches
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
