@@ -1,0 +1,44 @@
+{
+  "level": "L6",
+  "geometry": {
+    "preset": "intel14",
+    "fin_pitch_nm": 42.0,
+    "fin_width_nm": 8.0,
+    "fin_height_nm": 42.0,
+    "gate_pitch_nm": 70.0,
+    "gate_length_nm": 20.0,
+    "rotation_deg": 0.0,
+    "corner_radius_nm": 2.0,
+    "ler_sigma3_nm": 3.0,
+    "ler_corr_len_nm": 25.0,
+    "cut_density": 0.0,
+    "landmark_count": 0,
+    "landmark_scale_nm": 150.0
+  },
+  "reference": {
+    "pixel_size_nm": 1.0,
+    "size_px": 1000,
+    "supersample": 8,
+    "psf_sigma_nm": 1.0,
+    "dose_e_per_px": 2000.0,
+    "read_noise_sigma": 2.0,
+    "brightness_offset": 0.0,
+    "contrast_gain": 1.0,
+    "edge_amp_scale": 0.9,
+    "row_band_amp": 0.0,
+    "quantise_8bit": true
+  },
+  "search": {
+    "pixel_size_nm": 10.0,
+    "size_px": 1000,
+    "supersample": 8,
+    "psf_sigma_nm": 8.5,
+    "dose_e_per_px": 300.0,
+    "read_noise_sigma": 2.0,
+    "brightness_offset": 15.0,
+    "contrast_gain": 0.75,
+    "edge_amp_scale": 1.1,
+    "row_band_amp": 4.0,
+    "quantise_8bit": true
+  }
+}

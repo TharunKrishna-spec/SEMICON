@@ -522,3 +522,97 @@ Append-only. Chronological, one block per work session or per completed step.
   improved from the original sigma=3/k=8 state but not passing. Decision
   on next steps (extend the sigma search, accept as a documented
   limitation, or revisit the validation criterion) still pending.
+
+### 2026-08-17 — Steps 10-12: presets, make_dataset, remaining validation tests
+- User instruction: proceed to Steps 10-12 keeping sigma_search=8nm and
+  k=16 as-is; do not touch tests 6/7 further; treat the residual as a
+  documented Phase 1 limitation; complete presets + dataset generation;
+  stop once L0-L6 datasets are generated and sealed.
+- `presets.py` written: `_geometry`/`_reference`/`_search` baseline
+  builders, `L0`..`L6` functions implementing CLAUDE.md's ladder table
+  (search PSF baseline revised per D-021, L4's sigma-delta translated
+  onto that baseline, `edge_amp_scale` 0.9/1.1 split documented as our
+  choice), `cut_density_case()` for the 5-point sweep, `LEVEL_PRESETS`
+  dict. See D-023.
+- `suites/make_dataset.py` written: writes `data/case_NNNN/{reference.png,
+  search.png,config.json}` + `truth/case_NNNN/truth.json`; `config.json`
+  deliberately omits `seed` as well as `ref_center_nm`/`search_origin_nm`
+  (generate_pair is fully deterministic in (config, seed), so the seed
+  alone would let someone reconstruct the truth by re-running the
+  generator).
+- **Blocker**: timing a production-scale (1000px) render at k=16 hit
+  `numpy._core._exceptions._ArrayMemoryError` (tried to allocate 1.91 GiB
+  for a single (16000,16000) array) -- the fine grid at full scale is far
+  bigger than the small validation-gate renders that motivated k=16.
+  Presented three options to the user; chose k=8 for shipped data,
+  keeping k=16 only for the small-scale gate tests. See D-024 for the
+  full numeric justification that k=8 stays on the converged/safe side of
+  the quadrature curve for every shipped preset's actual
+  psf_sigma_nm/pixel_size_nm ratio.
+- Dataset generation batched (2 cases per background invocation, ~185s/
+  case at k=8/1000px) to stay under per-invocation time limits; 33 cases
+  total (28 across L0-L6 at 4/level + 5 for the cut_density sweep at
+  {0.05,0.02,0.01,0.005,0.0}).
+- Wrote the remaining validation tests (2,3,4,5,8,9,10,11). First combined
+  run of 3/4/5/8/9 hung indefinitely -- diagnosed as tests 3/4's isolated-
+  edge fixture using out_px=400 over a 40nm FOV (0.1nm/px) with k=16,
+  which drives `sigma_fine_px` up to 640 and makes
+  `scipy.ndimage.gaussian_filter`'s cost (which scales with kernel
+  radius) explode; confirmed via `Get-Process` CPU accumulation that it
+  was genuinely computing, not deadlocked. Fixed by dropping to k=4 (no
+  accuracy cost at this pixel/sigma ratio) -- runtime dropped to ~150s.
+- That fix then exposed two real, previously-masked bugs in the fixture
+  itself: (1) the real intel14 fin (8nm wide) put the edge's own opposite
+  edge inside the PSF's influence radius at large sigma, breaking
+  isolation; (2) even after widening the fixture geometry, test 3's
+  width metric (20-80% of profile.min()/max()) was wrong for a yield
+  model where `Y_SUBSTRATE==Y_FEATURE` -- profile.min()/max() are the
+  edge-enhancement peak/trough, whose *amplitude* shrinks with PSF blur
+  even as their true *separation* grows, making the naive metric
+  non-monotonic. Switched to peak-to-trough x-separation directly
+  (verified monotonic: 2.10/3.70/6.70/12.50 nm at sigma=0.5/1.0/2.0/4.0).
+  Full writeup in D-025.
+- Added a `preset="custom"` escape hatch to `config.resolve_preset()`
+  (bypasses the NODE_PRESETS lookup, returns the geometry unchanged) so
+  the widened isolated-edge fixture doesn't misrepresent itself as a real
+  process node in the public preset table.
+- Final full-suite run (`pytest generator/validate.py`, all 11 tests):
+  **9 passed, 2 failed (tests 6/7, exactly as documented in D-021/D-022 --
+  0.150px vs 0.200+/-0.01, residual_ptp 0.0755px)**. No threshold, PSF, or
+  forward-model parameter was changed to reach this state; the two
+  failures are the accepted, documented Phase 1 limitation per explicit
+  user instruction. `docs/validation/results.json` now has all 11 test
+  entries.
+- Dataset generation resumed in batches; proceeding toward all 33 cases.
+
+### 2026-08-17 — Dataset generation complete, Phase 1 sealed
+- All 33 cases generated: `data/case_0000`..`case_0032`,
+  `truth/case_0000`..`truth/case_0032` (28 across L0-L6 at 4/level, 5 for
+  the cut_density sweep at {0.05,0.02,0.01,0.005,0.0}).
+- Verified programmatically across all 33 cases: every `config.json` has
+  exactly `{level, geometry, reference, search}` keys with no `seed`,
+  `ref_center_nm`, or `search_origin_nm` at any nesting depth (checked
+  recursively, not just top-level); every `truth.json` has exactly the
+  required keys (`ref_center_nm`, `search_origin_nm`, `gt_search_px`,
+  `lattice_phase_fin`, `lattice_phase_gate`,
+  `dist_to_nearest_landmark_nm`); every case has all four files
+  (reference.png, search.png, config.json, truth.json).
+- Generated `docs/validation/contact_sheet_L0_L2_L6.png` from case_0000
+  (L0), case_0008 (L2), case_0024 (L6) -- reference+search side by side
+  per level. Visual sanity: L0 reference shows the clean fin/gate grid
+  with landmarks; L2 shows added dose noise and a visible large cut
+  feature; L6 shows a perfectly uniform lattice (no landmarks/cuts, as
+  specified) and clearly visible row banding in its search image
+  (row_band_amp=4.0). All physically consistent with the intended
+  difficulty ladder.
+- Regenerated `docs/assumptions.md` (`grep -rn "# ASSUMPTION:" generator/`)
+  -- picked up `presets.py`'s L4 sigma-delta assumption, which the
+  previous copy predated.
+- **Phase 1 status**: 9/11 validation tests pass; tests 6/7 fail exactly
+  as documented in D-021/D-022/D-025 (recovered 0.150px vs 0.200+/-0.01;
+  residual_ptp 0.0755px vs <0.025px), an explicitly accepted, documented
+  limitation per direct user instruction, not an oversight. All other
+  Definition-of-Done items (sealed dataset, determinism, config/truth
+  separation, contact sheet, DECISIONS/LOG/sources/assumptions docs) are
+  met. Stopping here per the user's explicit instruction -- no Phase 2
+  (localization) work started.
